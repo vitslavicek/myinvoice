@@ -21,6 +21,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *
  *   GET  /api/settings/supplier             — aktuální supplier (X-Supplier-Id)
  *   PUT  /api/settings/supplier             — update aktuálního (admin)
+ *   PUT  /api/settings/supplier/bank-account — upsert bank. účtu aktuálního (per-měna, admin)
  *   GET  /api/suppliers                     — list všech (pro switcher)
  *   POST /api/suppliers                     — nový supplier (admin)
  *   GET  /api/suppliers/{id}                — detail
@@ -52,6 +53,86 @@ final class SettingsAction
     {
         $id = (int) $request->getAttribute(SupplierScopeMiddleware::ATTR_CURRENT_ID, 0);
         return $this->updateSupplierById($request, $response, ['id' => (string) $id]);
+    }
+
+    /**
+     * Upsert bankovní účet na aktuálním supplier (X-Supplier-Id, admin).
+     *
+     * Bankovní pole (account_number/bank_code/iban/bic/bank_name) žijí per-měna
+     * na `currencies`, ne na `supplier` — proto nejsou součástí mass-assign
+     * whitelistu v `updateSupplierById` a potřebují vlastní endpoint. Dřív šlo
+     * účet nastavit jen jednorázově při `POST /api/suppliers` (createSupplier);
+     * změna účtu po založení supplier se nikam nepropsala (integrátor, který
+     * jen volal `PUT /api/settings/supplier`, o tomhle poli nevěděl).
+     *
+     * PUT /api/settings/supplier/bank-account
+     * Body: { currency: "CZK"|"EUR"|…, account_number?, bank_code?, bank_name?, iban?, bic? }
+     *
+     * Pokud měna pro tohoto supplier ještě neexistuje (např. EUR se nikdy
+     * nepoužilo), založí se — se stejnými defaulty jako seeding v createSupplier.
+     */
+    public function updateSupplierBankAccount(Request $request, Response $response): Response
+    {
+        if (!$this->guard($request, $response, $err)) return $err;
+        $sid = (int) $request->getAttribute(SupplierScopeMiddleware::ATTR_CURRENT_ID, 0);
+        if ($sid <= 0) return Json::error($response, 'validation_failed', 'Chybí X-Supplier-Id.', 400);
+
+        $b = (array) ($request->getParsedBody() ?? []);
+        $code = strtoupper(trim((string) ($b['currency'] ?? '')));
+        if (!preg_match('/^[A-Z]{3}$/', $code)) {
+            return Json::error($response, 'validation_failed', 'currency musí být 3 znaky (např. CZK, EUR).', 400);
+        }
+
+        $bankFields = ['account_number', 'bank_code', 'bank_name', 'iban', 'bic'];
+        if (empty(array_intersect($bankFields, array_keys($b)))) {
+            return Json::error($response, 'validation_failed', 'Uveď alespoň jedno z: ' . implode(', ', $bankFields) . '.', 400);
+        }
+
+        $pdo = $this->db->pdo();
+        $stmt = $pdo->prepare('SELECT id FROM currencies WHERE supplier_id = ? AND code = ?');
+        $stmt->execute([$sid, $code]);
+        $id = (int) ($stmt->fetchColumn() ?: 0);
+
+        if ($id > 0) {
+            $sets = [];
+            $params = [];
+            foreach ($bankFields as $f) {
+                if (array_key_exists($f, $b)) {
+                    $sets[] = "$f = ?";
+                    $params[] = ($b[$f] === '' || $b[$f] === null) ? null : (string) $b[$f];
+                }
+            }
+            $params[] = $id;
+            $pdo->prepare('UPDATE currencies SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+            $this->pdf->invalidateByCurrency($id);
+            $this->log($request, 'currency.bank_account_updated', $id, ['supplier_id' => $sid, 'code' => $code]);
+        } else {
+            // Měna ještě nebyla pro tohoto supplier seedovaná (typicky EUR) — založíme
+            // ji rovnou s bankovními údaji; defaulty zrcadlí seeding v createSupplier.
+            $names = ['CZK' => ['Kč', 'Česká koruna', 'Czech Koruna'], 'EUR' => ['€', 'Euro', 'Euro']];
+            [$symbol, $nameCs, $nameEn] = $names[$code] ?? [$code, $code, $code];
+            $stmt = $pdo->prepare('SELECT COUNT(*) FROM currencies WHERE supplier_id = ?');
+            $stmt->execute([$sid]);
+            $isDefault = ((int) $stmt->fetchColumn() === 0) ? 1 : 0;
+
+            $pdo->prepare(
+                'INSERT INTO currencies
+                    (supplier_id, code, label, symbol, name_cs, name_en, decimals, is_active, is_default,
+                     account_number, bank_code, bank_name, iban, bic)
+                 VALUES (?,?,?,?,?,?,2,1,?,?,?,?,?,?)'
+            )->execute([
+                $sid, $code, "$code — výchozí", $symbol, $nameCs, $nameEn, $isDefault,
+                ($b['account_number'] ?? '') !== '' ? (string) $b['account_number'] : null,
+                ($b['bank_code'] ?? '') !== '' ? (string) $b['bank_code'] : null,
+                ($b['bank_name'] ?? '') !== '' ? (string) $b['bank_name'] : null,
+                ($b['iban'] ?? '') !== '' ? (string) $b['iban'] : null,
+                ($b['bic'] ?? '') !== '' ? (string) $b['bic'] : null,
+            ]);
+            $id = (int) $pdo->lastInsertId();
+            $this->log($request, 'currency.created', $id, ['supplier_id' => $sid, 'code' => $code, 'via' => 'bank_account_sync']);
+        }
+
+        return $this->respondCurrencyById($response, $id);
     }
 
     /** GET /api/suppliers — list všech (pro switcher). */

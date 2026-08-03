@@ -550,6 +550,7 @@ final class Routes
         // Settings (M6) — aktuální supplier (z X-Supplier-Id)
         $app->get ('/api/settings/supplier',                [SettingsAction::class, 'getSupplier']);
         $app->put ('/api/settings/supplier',                [SettingsAction::class, 'updateSupplier']);
+        $app->put ('/api/settings/supplier/bank-account',    [SettingsAction::class, 'updateSupplierBankAccount']);
         $app->put ('/api/settings/supplier/invoice-counter', SupplierInvoiceCounterAction::class);
         $app->get    ('/api/settings/email-profiles',       [EmailProfilesAction::class, 'list']);
         $app->post   ('/api/settings/email-profiles',       [EmailProfilesAction::class, 'create']);

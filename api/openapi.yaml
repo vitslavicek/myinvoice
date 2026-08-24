@@ -2095,8 +2095,8 @@ paths:
         `proforma_number_format`, `credit_note_number_format`,
         `purchase_invoice_number_format`, `invoice_number_period`) a **branding
         PDF/e-mailů** (`email_branding_enabled`, `email_accent_color`,
-        `pdf_logo_show_name`, `display_name`, `tagline`). Logo se nahrává zvlášť
-        (není součástí tohoto endpointu).
+        `pdf_logo_show_name`, `pdf_theme`, `display_name`, `tagline`). Logo se
+        nahrává zvlášť (není součástí tohoto endpointu).
       requestBody:
         required: true
         content:
@@ -6535,6 +6535,11 @@ components:
         email_branding_enabled: { type: boolean, description: "Zapne logo + akcentní barvu v e-mailech a PDF" }
         email_accent_color: { type: string, example: "#3B2D83", description: "Hex #RRGGBB; akcentní barva e-mailů a PDF faktur" }
         pdf_logo_show_name: { type: boolean, description: "Zobrazit vedle loga v PDF i název dodavatele" }
+        pdf_theme:
+          type: string
+          enum: [default, simple]
+          default: default
+          description: "Vzhled PDF dokladu (faktura i výkaz): `default` = akcentové plochy a podbarvení, `simple` = jednobarevný doklad (černý text, tenké linky, bez podbarvení). Logo se řídí dál `email_branding_enabled`; akcentní barva se u `simple` na PDF neuplatní (e-mailů se theme netýká)."
         auto_send_reminders: { type: boolean }
         reminder_days_after_due: { type: integer, minimum: 1, maximum: 365 }
 

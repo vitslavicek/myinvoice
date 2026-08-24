@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Vzhled PDF dokladu per dodavatel (`pdf_theme`).** Vedle stávajícího vzhledu s akcentovými plochami přibyl **jednoduchý** (`simple`) theme: jednobarevný doklad s černým textem, tenkými linkami a bez podbarvení — pro dodavatele, kteří chtějí „raw" fakturu jen s logem. Platí pro PDF faktury i výkazu víceprací; logo se dál řídí přepínačem brandingu, akcentní barva se u jednoduchého vzhledu na PDF neuplatní (e-mailů se theme netýká). Nastavení → Branding, nebo `PUT /api/v1/settings/supplier` s `pdf_theme`. (migrace 0136)
+
 ## [4.47.0] — 2026-07-18
 
 ### Added

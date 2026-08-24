@@ -312,7 +312,8 @@ final class SettingsAction
             'purchase_invoice_number_format',
             'invoice_number_period',
             // Per-supplier branding emailů (migrace 0016) + PDF logo+název (migrace 0058)
-            'email_branding_enabled', 'email_accent_color', 'pdf_logo_show_name',
+            // + vzhled PDF dokladu (migrace 0136)
+            'email_branding_enabled', 'email_accent_color', 'pdf_logo_show_name', 'pdf_theme',
             // Tax settings pro EPO výkazy (migrace 0038, fáze 6)
             'taxpayer_type', 'vat_period', 'financial_office_code', 'workplace_code',
             'cz_nace_code', 'data_box_type', 'data_box_id', 'flat_tax_band',
@@ -389,6 +390,22 @@ final class SettingsAction
                 $body['email_accent_color'] = '#3B2D83';
             } elseif (!preg_match('/^#[0-9A-Fa-f]{6}$/', $v)) {
                 return Json::error($response, 'validation_failed', "email_accent_color musí být hex barva (#RRGGBB).", 400);
+            }
+        }
+        // Validace pdf_theme — enum (PdfBranding::THEMES); prázdný string = default.
+        if (array_key_exists('pdf_theme', $body)) {
+            $v = strtolower(trim((string) ($body['pdf_theme'] ?? '')));
+            if ($v === '') {
+                $body['pdf_theme'] = \MyInvoice\Service\Pdf\PdfBranding::THEME_DEFAULT;
+            } elseif (!in_array($v, \MyInvoice\Service\Pdf\PdfBranding::THEMES, true)) {
+                return Json::error(
+                    $response,
+                    'validation_failed',
+                    'pdf_theme musí být jedna z hodnot: ' . implode(', ', \MyInvoice\Service\Pdf\PdfBranding::THEMES) . '.',
+                    400
+                );
+            } else {
+                $body['pdf_theme'] = $v;
             }
         }
         // Validace per-supplier varsymbol templatů: prázdný string → NULL (= fallback na cfg);
@@ -479,6 +496,7 @@ final class SettingsAction
         if (array_key_exists('email_accent_color', $body)
             || array_key_exists('email_branding_enabled', $body)
             || array_key_exists('pdf_logo_show_name', $body)
+            || array_key_exists('pdf_theme', $body)
         ) {
             $this->pdf->invalidateDraftsBySupplier($id);
         }
@@ -580,6 +598,7 @@ final class SettingsAction
         $row['email_branding_enabled']   = (bool) ($row['email_branding_enabled'] ?? false);
         $row['email_accent_color']       = (string) ($row['email_accent_color'] ?? '#3B2D83');
         $row['pdf_logo_show_name']       = (bool) ($row['pdf_logo_show_name'] ?? false);
+        $row['pdf_theme']                = \MyInvoice\Service\Pdf\PdfBranding::normalizeTheme($row['pdf_theme'] ?? null);
         $row['has_email_logo']           = is_file(\MyInvoice\Infrastructure\Config\RuntimePaths::storage('supplier-logos') . '/sup-' . $row['id'] . '.png');
         $row['payment_thanks_enabled']        = (bool) ($row['payment_thanks_enabled'] ?? false);
         $row['payment_thanks_auto_send']      = (bool) ($row['payment_thanks_auto_send'] ?? false);

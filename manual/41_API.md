@@ -151,7 +151,9 @@ Veřejný subset nastavení dodavatele jde měnit tokenem se scope `read_write`
   `proforma_number_format`, `credit_note_number_format`,
   `purchase_invoice_number_format`, `invoice_number_period`) a **branding**
   (`email_branding_enabled`, `email_accent_color`, `pdf_logo_show_name`,
-  `display_name`, `tagline`). Logo se přes tento endpoint nastavit nedá.
+  `pdf_theme` = `default` | `simple`, `display_name`, `tagline`). `simple` je
+  jednobarevný doklad bez podbarvení (logo zůstává, akcentní barva se na PDF
+  neuplatní). Logo se přes tento endpoint nastavit nedá.
 
 - **`PUT /api/v1/settings/supplier/invoice-counter`** — nastaví counter číselné
   řady tak, aby příští vystavený doklad dostal zadané číslo. Hodí se při

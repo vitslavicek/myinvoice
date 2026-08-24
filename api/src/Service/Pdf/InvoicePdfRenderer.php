@@ -314,8 +314,9 @@ final class InvoicePdfRenderer
      */
     private function brandAccentCss(array $supplier): string
     {
-        // Sdíleno s výkazem víceprací — viz PdfBranding::accentCss.
-        return PdfBranding::accentCss($supplier);
+        // Sdíleno s výkazem víceprací — viz PdfBranding::supplierCss (theme `simple`
+        // má přednost před akcentní barvou, migrace 0136).
+        return PdfBranding::supplierCss($supplier);
     }
 
     /**

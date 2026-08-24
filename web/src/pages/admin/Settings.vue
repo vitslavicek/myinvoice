@@ -314,6 +314,7 @@ async function saveBranding(silent = false) {
       email_branding_enabled: supplier.value.email_branding_enabled,
       email_accent_color: supplier.value.email_accent_color,
       pdf_logo_show_name: supplier.value.pdf_logo_show_name,
+      pdf_theme: supplier.value.pdf_theme,
     })
     // Merge response do reactive supplier (zachová local-only fields jako has_email_logo)
     supplier.value = { ...supplier.value, ...updated }
@@ -340,6 +341,7 @@ watch(supplier, () => {
 let colorTimer: ReturnType<typeof setTimeout> | null = null
 watch(() => supplier.value?.email_branding_enabled, () => { if (watching) saveBranding(true) })
 watch(() => supplier.value?.pdf_logo_show_name, () => { if (watching) saveBranding(true) })
+watch(() => supplier.value?.pdf_theme, () => { if (watching) saveBranding(true) })
 watch(() => supplier.value?.email_accent_color, () => {
   if (!watching) return
   if (colorTimer) clearTimeout(colorTimer)
@@ -892,6 +894,15 @@ async function removeLogo() {
                   {{ t('settings.branding_accent_reset') }}
                 </button>
               </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('settings.branding_pdf_theme') }}</label>
+              <p class="text-xs text-neutral-500 mb-2">{{ t('settings.branding_pdf_theme_hint') }}</p>
+              <select v-model="supplier.pdf_theme" class="h-10 px-3 border border-neutral-300 rounded-md text-sm bg-white">
+                <option value="default">{{ t('settings.branding_pdf_theme_default') }}</option>
+                <option value="simple">{{ t('settings.branding_pdf_theme_simple') }}</option>
+              </select>
             </div>
 
             <p class="text-xs text-neutral-500">

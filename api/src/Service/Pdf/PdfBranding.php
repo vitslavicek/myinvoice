@@ -11,13 +11,98 @@ use MyInvoice\Service\Mail\SafeLogoPath;
  * Sdílená brandingová logika pro PDF (faktura + výkaz víceprací):
  *   - resolveLogoPath: gate na email_branding_enabled, SafeLogoPath validace,
  *     preference SVG sidecaru (crisp), fallback PNG,
- *   - accentCss: override CSS přebarvující fialové akcenty na zvolenou barvu.
+ *   - accentCss: override CSS přebarvující fialové akcenty na zvolenou barvu,
+ *   - themeCss / supplierCss: per-supplier vzhled PDF (`pdf_theme`, migrace 0136):
+ *     `simple` = jednobarevný doklad bez podbarvení; akcentní barva se pak neuplatní.
  *
  * Cíl: faktura i výkaz mají identické chování hlavičky (3 varianty: bez loga →
  * textový název, jen logo, logo + název) a stejné barevné branding změny.
  */
 final class PdfBranding
 {
+    /** Povolené hodnoty `supplier.pdf_theme` (migrace 0136). */
+    public const THEMES = ['default', 'simple'];
+    public const THEME_DEFAULT = 'default';
+    public const THEME_SIMPLE = 'simple';
+
+    /** Normalizuje hodnotu theme — cokoli mimo THEMES (vč. null/legacy řádků) = default. */
+    public static function normalizeTheme(?string $theme): string
+    {
+        $t = strtolower(trim((string) $theme));
+        return in_array($t, self::THEMES, true) ? $t : self::THEME_DEFAULT;
+    }
+
+    /**
+     * Kompletní per-supplier CSS override připojovaný ZA base invoice.css — jediný
+     * vstupní bod pro oba renderery (faktura i výkaz). `simple` theme má přednost
+     * před akcentní barvou: monochromatický doklad nemá co přebarvovat.
+     */
+    public static function supplierCss(array $supplier): string
+    {
+        if (self::normalizeTheme($supplier['pdf_theme'] ?? null) === self::THEME_SIMPLE) {
+            return self::themeCss(self::THEME_SIMPLE);
+        }
+        return self::accentCss($supplier);
+    }
+
+    /**
+     * CSS override pro zvolený theme. `default` = '' (base CSS stačí).
+     *
+     * `simple`: „raw" jednobarevný doklad — černý text, tenké černé/šedé linky,
+     * žádné podbarvené plochy (strany, hlavička položek, celkem, platební panel,
+     * poznámky). Odběratel je zvýrazněn tenkým rámečkem místo podbarvení.
+     * Nezávislé na email_branding_enabled — to dál řídí jen logo.
+     * Selektory zrcadlí accentCss, aby oba override pokrývaly stejné prvky
+     * (u výkazu jsou přebytečné selektory no-op).
+     */
+    public static function themeCss(string $theme): string
+    {
+        if (self::normalizeTheme($theme) !== self::THEME_SIMPLE) {
+            return '';
+        }
+        $ink   = '#111111';
+        $muted = '#555555';
+        $faint = '#8A8A8A';
+        $rule  = '#111111';
+        $hair  = '#CCCCCC';
+
+        return "\n/* ─── Theme override: simple (monochrome, no fills) ─── */\n"
+            . "body { color: {$ink}; }\n"
+            . ".head { border-bottom: 1pt solid {$rule}; }\n"
+            . ".brand-name, .doc-type, .varsymbol-big, td.logo-name { color: {$ink}; }\n"
+            . ".parent-ref { color: {$muted}; }\n"
+            . ".isdoc-badge { color: {$ink}; background: transparent; border-color: {$ink}; }\n"
+            . ".parties td { background: transparent; }\n"
+            . ".parties td.party-customer { background: transparent; border: 0.6pt solid {$rule}; }\n"
+            . ".parties h2, td.meta-label, .bank-label { color: {$muted}; }\n"
+            . ".party-name, .bank-value { color: {$ink}; }\n"
+            . ".ic-dic, .bank-meta-line, td.tot-label, .czk-recap-rate { color: {$muted}; }\n"
+            . ".meta-grid td { border-bottom-color: {$hair}; }\n"
+            . "table.items th { background: transparent; color: {$ink}; border-bottom: 1pt solid {$rule}; }\n"
+            . "table.items td { border-bottom-color: {$hair}; }\n"
+            . "table.items tr:nth-child(even) td { background: transparent; }\n"
+            . "table.totals-table tr.subtotal td { border-top-color: {$hair}; }\n"
+            . "table.totals-table tr.grand td { background: transparent; color: {$ink}; border-top: 1pt solid {$rule}; border-bottom: 1pt solid {$rule}; }\n"
+            . "table.totals-table tr.grand td.tot-label { color: {$ink}; }\n"
+            . "table.totals-table tr.to-pay td { background: transparent; border-top-color: {$rule}; color: {$ink}; }\n"
+            . "table.totals-table tr.advance td { color: {$muted}; }\n"
+            . "table.totals-table tr.rate-note td.rate-note-cell { color: {$muted}; }\n"
+            . "table.czk-recap, table.czk-recap td { background: transparent; }\n"
+            . "table.czk-recap td.czk-recap-title { color: {$ink}; border-bottom-color: {$rule}; }\n"
+            . "table.czk-recap tr.subtotal td { border-top-color: {$hair}; background: transparent; }\n"
+            . "table.czk-recap tr.grand td { background: transparent; color: {$ink}; border-top: 1pt solid {$rule}; }\n"
+            . ".pay-panel { background: transparent; border: 0.6pt solid {$rule}; border-radius: 0; }\n"
+            . ".pay-panel.pay-panel-paid { background: transparent; border-color: {$rule}; }\n"
+            . ".note { background: transparent; border-left: 1.5pt solid {$rule}; color: {$ink}; }\n"
+            . ".note.rc-note { background: transparent; border-left-color: {$rule}; color: {$ink}; }\n"
+            . ".footer { border-top-color: {$hair}; color: {$muted}; }\n"
+            . ".footer-name { color: {$ink}; }\n"
+            . ".footer-dot { color: {$faint}; }\n"
+            . ".commercial-register { color: {$faint}; }\n"
+            . ".page-attribution, .page-attribution a { color: {$faint}; }\n"
+            . ".wr-title, .wr-link { color: {$ink}; }\n";
+    }
+
     /**
      * Logo pro PDF — jen když má dodavatel zapnutý branding (email_branding_enabled).
      * Bez brandingu vrací null → šablona vykreslí textový brand-name fallback.

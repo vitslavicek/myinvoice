@@ -52,7 +52,7 @@ final class WorkReportPdfRenderer
 
         $cssPath = Bootstrap::rootDir() . '/styles/invoice.css';
         $css = is_file($cssPath) ? (string) file_get_contents($cssPath) : '';
-        $css .= PdfBranding::accentCss($supplier);
+        $css .= PdfBranding::supplierCss($supplier);
 
         $locale = (string) ($invoice['language'] ?? 'cs');
         $twig = $this->twig();

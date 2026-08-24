@@ -407,8 +407,12 @@ final class IsdocExporter
             $this->el($dom, $details, 'Name', (string) ($bank['bank_name'] ?? ''));
             $this->el($dom, $details, 'IBAN', $iban);
             $this->el($dom, $details, 'BIC', $bic);
-            if (!empty($invoice['varsymbol'])) {
-                $this->el($dom, $details, 'VariableSymbol', (string) $invoice['varsymbol']);
+            // Platební VS (migrace 0137) má přednost před číslem dokladu.
+            $isdocVs = (string) (!empty($invoice['payment_variable_symbol'])
+                ? $invoice['payment_variable_symbol']
+                : ($invoice['varsymbol'] ?? ''));
+            if ($isdocVs !== '') {
+                $this->el($dom, $details, 'VariableSymbol', $isdocVs);
             }
             $this->el($dom, $details, 'ConstantSymbol', '0308');
 

@@ -231,7 +231,12 @@ final class InvoicePdfRenderer
         $remaining = round((float) $invoice['amount_to_pay'] - (float) ($invoice['paid_total'] ?? 0), 2);
         $hasAmount = $remaining > 0;
         $isCzk = ((string) $invoice['currency']) === 'CZK';
-        $hasVs = !empty($invoice['varsymbol']);
+        // Platební VS (migrace 0137) má přednost před číslem dokladu — QR, řádek
+        // „Var. symbol" i bankovní panel musí ukazovat to, pod čím platba reálně přijde.
+        $paymentVsSource = (string) (!empty($invoice['payment_variable_symbol'])
+            ? $invoice['payment_variable_symbol']
+            : ($invoice['varsymbol'] ?? ''));
+        $hasVs = $paymentVsSource !== '';
         $isPaid = ($invoice['status'] ?? '') === 'paid';
         $paymentMethod = (string) ($invoice['payment_method'] ?? 'bank_transfer');
         $isBankTransfer = $paymentMethod === 'bank_transfer';
@@ -239,7 +244,7 @@ final class InvoicePdfRenderer
             $qrUri = $this->qr->generate(
                 (string) $invoice['currency'],
                 $remaining,
-                (string) ($invoice['varsymbol'] ?? ''),
+                $paymentVsSource,
                 $bankData,
                 (string) ($supplierData['display_name'] ?? $supplierData['company_name'] ?? 'MyInvoice'),
             );
@@ -270,7 +275,7 @@ final class InvoicePdfRenderer
             // Platební VS = jen číslice (max 10) — `varsymbol` může nést pomlčku z čísla
             // dokladu, kterou banka nepřijme. Velký titulek dokladu zůstává s pomlčkou,
             // ale do platebního řádku tiskneme validní VS (shodné s QR a párováním).
-            'payment_varsymbol' => VariableSymbolNormalizer::forPayment((string) ($invoice['varsymbol'] ?? '')),
+            'payment_varsymbol' => VariableSymbolNormalizer::forPayment($paymentVsSource),
             'is_paid'           => $isPaid,
             'payment_method'    => $paymentMethod,
             'locale'            => $locale,

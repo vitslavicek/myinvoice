@@ -28,6 +28,23 @@ final class VariableSymbolNormalizer
     public const MAX_LENGTH = 10;
 
     /** Jen číslice — odstraní vše ostatní (pomlčky, lomítka, mezery, písmena). */
+    /**
+     * Normalizace pro ULOŽENÍ `invoices.payment_variable_symbol` (migrace 0137):
+     * null pro prázdný vstup, jinak jen číslice; víc než 10 číslic nebo žádná
+     * číslice → InvalidArgumentException (banka VS nad 10 číslic nepřijme).
+     */
+    public static function forStorage(?string $value): ?string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+        if (!preg_match('/^\d{1,10}$/', $raw)) {
+            throw new \InvalidArgumentException('payment_variable_symbol musí být 1–10 číslic');
+        }
+        return $raw;
+    }
+
     public static function digits(string $value): string
     {
         return preg_replace('/\D+/', '', $value) ?? '';

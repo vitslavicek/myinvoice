@@ -5570,6 +5570,7 @@ components:
         parent_invoice_id: { type: integer, nullable: true, description: "Pro credit_note / cancellation / final-z-proformy odkaz na původní fakturu" }
         recurring_template_id: { type: integer, nullable: true, description: "Pro faktury vygenerované ze šablony pravidelné fakturace — odkaz na šablonu (NULL pokud byla šablona smazána, viz ON DELETE SET NULL)." }
         varsymbol: { type: string, nullable: true, description: "Variabilní symbol = číslo faktury. Přiděluje se při issue (u draft je null nebo manuální override)." }
+        payment_variable_symbol: { type: string, nullable: true, description: "Samostatný platební VS (1–10 číslic), pokud se liší od čísla dokladu; null = platí varsymbol." }
         invoice_type:
           type: string
           enum: [invoice, proforma, credit_note, cancellation, tax_document]
@@ -5716,6 +5717,11 @@ components:
           maxLength: 20
           nullable: true
           description: "Volitelný manuální override automatického číslování. U draftu lze ponechat null — číslo se přidělí při /issue."
+        payment_variable_symbol:
+          type: string
+          pattern: '^[0-9]{1,10}$'
+          nullable: true
+          description: "Samostatný PLATEBNÍ variabilní symbol (1–10 číslic). Číslo dokladu jde dál z číselné řady (`varsymbol`); tenhle VS se tiskne v řádku Var. symbol a QR na PDF, jde do ISDOC/Pohody a páruje bankovní výpis. Typicky výplata z marketplace pod cizím VS (Aukro). Prázdné = VS = číslo dokladu."
         advance_paid_amount: { type: number, format: float, default: 0, description: "Záloha k odečtení od total_with_vat" }
         discount_percent:
           type: number

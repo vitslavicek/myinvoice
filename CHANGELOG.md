@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Samostatný platební variabilní symbol na vydané faktuře (`payment_variable_symbol`).** Číslo dokladu jde dál z číselné řady, ale platba může přijít pod jiným VS (typicky výplata z marketplace, např. Aukro pod svým payment id). Nové pole (1–10 číslic) má přednost před číslem dokladu všude, kde jde o platbu: řádek Var. symbol a QR na PDF, ISDOC `VariableSymbol`, Pohoda `symVar` a párování bankovního výpisu. V editoru faktury pole „Platební variabilní symbol", v API `payment_variable_symbol` na create/update. (migrace 0137)
+
 - **Vzhled PDF dokladu per dodavatel (`pdf_theme`).** Vedle stávajícího vzhledu s akcentovými plochami přibyl **jednoduchý** (`simple`) theme: jednobarevný doklad s černým textem, tenkými linkami a bez podbarvení — pro dodavatele, kteří chtějí „raw" fakturu jen s logem. Platí pro PDF faktury i výkazu víceprací; logo se dál řídí přepínačem brandingu, akcentní barva se u jednoduchého vzhledu na PDF neuplatní (e-mailů se theme netýká). Nastavení → Branding, nebo `PUT /api/v1/settings/supplier` s `pdf_theme`. (migrace 0136)
 
 ## [4.47.0] — 2026-07-18

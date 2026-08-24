@@ -735,17 +735,23 @@ final class InvoiceRepository
             $paymentMethod = 'bank_transfer';
         }
 
+        // Samostatný platební VS (migrace 0137) — číslo dokladu jde z řady, VS zvlášť.
+        $paymentVs = \MyInvoice\Service\Bank\VariableSymbolNormalizer::forStorage(
+            isset($data['payment_variable_symbol']) ? (string) $data['payment_variable_symbol'] : null
+        );
+
         $hasExempt = $this->supportsIncomeTaxExempt();
         $hasReminders = $this->supportsAutoSendReminders();
         $sql = 'INSERT INTO invoices
             (invoice_type, parent_invoice_id, client_id, project_id, supplier_id,
              issue_date, tax_date, due_date, currency_id, reverse_charge, prices_include_vat, language,
              note_above_items, note_below_items, advance_paid_amount, discount_percent, varsymbol,
+             payment_variable_symbol,
              payment_method, status, vat_classification_code, revenue_category, revenue_category_id,'
             . ($hasExempt ? ' income_tax_exempt, income_tax_exempt_reason,' : '')
             . ($hasReminders ? ' auto_send_reminders,' : '')
             . ' created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "draft", ?, ?, ?,'
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "draft", ?, ?, ?,'
             . ($hasExempt ? ' ?, ?,' : '')
             . ($hasReminders ? ' ?,' : '')
             . ' ?)';
@@ -768,6 +774,7 @@ final class InvoiceRepository
             (float) ($data['advance_paid_amount'] ?? 0),
             self::clampDiscountPercent($data['discount_percent'] ?? 0),
             $manualVarsymbol,
+            $paymentVs,
             $paymentMethod,
             !empty($data['vat_classification_code']) ? (string) $data['vat_classification_code'] : null,
             !empty($data['revenue_category']) ? (string) $data['revenue_category'] : null,
@@ -807,6 +814,15 @@ final class InvoiceRepository
             }
         }
 
+        // Platební VS (migrace 0137) — stejná sémantika klíče jako varsymbol:
+        // chybí = nesahat, null/'' = vyčistit.
+        $hasPaymentVs = array_key_exists('payment_variable_symbol', $data);
+        $paymentVs = $hasPaymentVs
+            ? \MyInvoice\Service\Bank\VariableSymbolNormalizer::forStorage(
+                $data['payment_variable_symbol'] === null ? null : (string) $data['payment_variable_symbol']
+            )
+            : null;
+
         $hasPaymentMethod = array_key_exists('payment_method', $data);
         $paymentMethod = null;
         if ($hasPaymentMethod) {
@@ -834,6 +850,7 @@ final class InvoiceRepository
               . ($hasExempt ? ', income_tax_exempt = ?, income_tax_exempt_reason = ?' : '')
               . ($hasReminders ? ', auto_send_reminders = ?' : '')
               . ($hasVarsymbol ? ', varsymbol = ?' : '')
+              . ($hasPaymentVs ? ', payment_variable_symbol = ?' : '')
               . ($hasPaymentMethod ? ', payment_method = ?' : '')
               . ($hasType ? ', invoice_type = ?' : '')
               . ' WHERE id = ?';
@@ -864,6 +881,7 @@ final class InvoiceRepository
             $params[] = array_key_exists('auto_send_reminders', $data) ? ((int) (bool) $data['auto_send_reminders']) : 1;
         }
         if ($hasVarsymbol) $params[] = $manualVarsymbol;
+        if ($hasPaymentVs) $params[] = $paymentVs;
         if ($hasPaymentMethod) $params[] = $paymentMethod;
         if ($hasType) $params[] = (string) $data['invoice_type'];
         $params[] = $id;

@@ -201,6 +201,7 @@ const form = ref<{
   auto_send_reminders: boolean
   exchange_rate: number | null
   varsymbol: string  // Ruční override čísla faktury (prázdný = generuje se při issue)
+  payment_variable_symbol: string  // Samostatný platební VS (prázdný = VS = číslo dokladu), migrace 0137
   vat_classification_code: string | null
   revenue_category: string | null
   revenue_category_id: number | null
@@ -228,6 +229,7 @@ const form = ref<{
   auto_send_reminders: true,
   exchange_rate: null,
   varsymbol: '',
+  payment_variable_symbol: '',
   vat_classification_code: null,
   revenue_category: null,
   revenue_category_id: null,
@@ -461,6 +463,7 @@ onMounted(async () => {
       items: inv.items.filter(i => i.item_kind !== 'discount').map(i => ({ ...i })),
       exchange_rate: inv.exchange_rate ?? null,
       varsymbol: inv.varsymbol ?? '',
+      payment_variable_symbol: (inv as any).payment_variable_symbol ?? '',
       vat_classification_code: (inv as any).vat_classification_code ?? null,
       revenue_category: (inv as any).revenue_category ?? null,
       revenue_category_id: (inv as any).revenue_category_id ?? null,
@@ -1274,6 +1277,8 @@ async function submit() {
       // Volitelný ruční varsymbol — backend ho akceptuje jen u draftu;
       // prázdný řetězec → backend uloží NULL a vygeneruje při issue automaticky.
       varsymbol: form.value.varsymbol.trim(),
+      // Samostatný platební VS — prázdný → NULL (VS = číslo dokladu).
+      payment_variable_symbol: form.value.payment_variable_symbol.trim() || null,
       vat_classification_code: form.value.vat_classification_code,
       revenue_category: form.value.revenue_category,
       revenue_category_id: form.value.revenue_category_id,
@@ -1591,6 +1596,13 @@ async function deleteDraft() {
             <div v-else-if="editedVarsymbol" class="rounded-md bg-neutral-50 border border-neutral-200 p-3 text-sm">
               <span class="text-neutral-500">{{ t(varsymbolLabelKey) }}:</span>
               <code class="ml-2 font-mono font-semibold">{{ editedVarsymbol }}</code>
+            </div>
+            <div v-if="editedStatus === 'draft'">
+              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.payment_vs_label') }}</label>
+              <input v-model="form.payment_variable_symbol" type="text" maxlength="10" inputmode="numeric" pattern="[0-9]*"
+                :placeholder="t('invoice.payment_vs_placeholder')"
+                class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono" />
+              <p class="text-xs text-neutral-500 mt-1">{{ t('invoice.payment_vs_hint') }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.issue_date') }} *</label>

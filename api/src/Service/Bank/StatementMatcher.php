@@ -263,12 +263,17 @@ final class StatementMatcher
                  WHERE i.supplier_id = ?
                    AND (i.varsymbol = ?
                         OR (i.varsymbol REGEXP '[1-9]'
-                            AND CAST(REGEXP_REPLACE(i.varsymbol, '[^0-9]', '') AS UNSIGNED) = CAST(? AS UNSIGNED)))
+                            AND CAST(REGEXP_REPLACE(i.varsymbol, '[^0-9]', '') AS UNSIGNED) = CAST(? AS UNSIGNED))
+                        OR (i.payment_variable_symbol IS NOT NULL
+                            AND i.payment_variable_symbol REGEXP '[1-9]'
+                            AND CAST(i.payment_variable_symbol AS UNSIGNED) = CAST(? AS UNSIGNED)))
                    AND i.status IN ('issued', 'sent', 'reminded', 'paid')
                    AND i.invoice_type IN ('invoice', 'proforma')
+                 ORDER BY (i.payment_variable_symbol IS NOT NULL AND CAST(i.payment_variable_symbol AS UNSIGNED) = CAST(? AS UNSIGNED)) DESC, i.id
                  LIMIT 1";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$supplierId, $vs, $vsDigits]);
+        // Samostatný platební VS (migrace 0137) má při shodě přednost před číslem dokladu.
+        $stmt->execute([$supplierId, $vs, $vsDigits, $vsDigits, $vsDigits]);
         $inv = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$inv) {
             return ['status' => 'unmatched', 'reason' => 'no_invoice_with_vs', 'tx_currency' => $txCurrency];

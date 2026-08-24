@@ -89,6 +89,8 @@ export type PaymentMethod = 'bank_transfer' | 'card' | 'cash' | 'other'
 export interface Invoice {
   id: number
   varsymbol: string | null
+  /** Samostatný platební VS (migrace 0137); null = platí varsymbol. */
+  payment_variable_symbol?: string | null
   invoice_type: InvoiceType
   parent_invoice_id: number | null
   client_id: number
@@ -288,6 +290,8 @@ export interface InvoicePayload {
   // s fallbackem na cfg.varsymbol.templates. Backend ho akceptuje jen u draftu;
   // po vystavení je číslo immutable (snapshot).
   varsymbol?: string | null
+  // Samostatný platební VS (1–10 číslic, migrace 0137); null/prázdné = VS = číslo dokladu.
+  payment_variable_symbol?: string | null
   vat_classification_code?: string | null
   revenue_category?: string | null
   revenue_category_id?: number | null

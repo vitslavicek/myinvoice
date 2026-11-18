@@ -133,7 +133,12 @@ final class MoneyS3XmlExporter
         $this->el($xml, $node, 'DatSkPoh', $this->date((string) ($invoice['issue_date'] ?? '')));
         $this->el($xml, $node, 'KonstSym', (string) ($invoice['constant_symbol'] ?? ''));
         $this->el($xml, $node, 'ZjednD', '0');
-        $this->el($xml, $node, 'VarSymbol', (string) ($invoice['varsymbol'] ?? ''));
+        // <VarSymbol> je platební pole (podle něj Money páruje úhrady z banky). Když doklad nese
+        // samostatný platební VS (platba přišla pod jiným symbolem, než je číslo dokladu), patří
+        // sem ten. Číslo dokladu z řady zůstává v <Doklad>.
+        $this->el($xml, $node, 'VarSymbol', (string) (
+            !empty($invoice['payment_variable_symbol']) ? $invoice['payment_variable_symbol'] : ($invoice['varsymbol'] ?? '')
+        ));
         $this->el($xml, $node, 'Ucet', 'BAN');
         $this->el($xml, $node, 'Druh', 'N');
         $this->el($xml, $node, 'Dobropis', ($invoice['invoice_type'] ?? '') === 'credit_note' ? '1' : '0');

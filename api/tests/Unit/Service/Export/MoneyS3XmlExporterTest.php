@@ -196,6 +196,23 @@ final class MoneyS3XmlExporterTest extends TestCase
         self::assertSame('EUR', $this->xpathOne($xml, '//FaktVyd/MojeFirma/MenaKod'));
     }
 
+    public function testPaymentVariableSymbolGoesToVarSymbolAndDocumentNumberStays(): void
+    {
+        $xml = $this->exporter->buildXml([$this->invoice(['payment_variable_symbol' => '7780622'])]);
+
+        self::assertSame('1026001', $this->xpathOne($xml, '//FaktVyd/Doklad'));
+        self::assertSame('7780622', $this->xpathOne($xml, '//FaktVyd/VarSymbol'));
+    }
+
+    public function testWithoutPaymentVariableSymbolVarSymbolIsDocumentNumber(): void
+    {
+        foreach ([[], ['payment_variable_symbol' => null], ['payment_variable_symbol' => '']] as $overrides) {
+            $xml = $this->exporter->buildXml([$this->invoice($overrides)]);
+
+            self::assertSame('1026001', $this->xpathOne($xml, '//FaktVyd/VarSymbol'));
+        }
+    }
+
     public function testItemLinePerUnitBucketsMatchLineTotalsForSingleUnit(): void
     {
         $xml = $this->exporter->buildXml([$this->invoice()]);
